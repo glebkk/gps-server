@@ -21,7 +21,7 @@ func (mh *MovementsHandler) GetAllById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		fmt.Println(err)
-		ctx.AbortWithStatusJSON(409, "invalid id")
+		ctx.AbortWithStatusJSON(400, "invalid id")
 		return
 	}
 
@@ -121,8 +121,6 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(400, "Bad Input")
 		return
 	}
-	//use Exec whenever we want to insert update or delete
-	//Doing Exec(query) will not use a prepared statement, so lesser TCP calls to the SQL server
 	_, err = db.Db.Exec(`insert into movements ("user_id","latitude", "longitude") values ($1,$2,$3)`, id, body.Latitude, body.Longitude)
 	if err != nil {
 		fmt.Println(err)
@@ -131,5 +129,3 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, "Movement created")
 	}
 }
-
-// time_format:"2006-01-02T15:04:05.000Z"

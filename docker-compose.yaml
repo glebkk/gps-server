@@ -12,20 +12,3 @@ services:
     ports:
       - "5436:5432"
     image: postgres:16
-
-
-  pgadmin:
-    image: dpage/pgadmin4:4.23
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@pgadmin.com
-      PGADMIN_DEFAULT_PASSWORD: 123
-      PGADMIN_LISTEN_PORT: 80
-    ports:
-      - 15432:80
-    volumes:
-      - pgadmin:/var/lib/pgadmin
-    depends_on:
-      - db
-
-volumes:
-  pgadmin:
