@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"gps_api/db"
 	"gps_api/model"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type UserHandler struct {
@@ -25,7 +26,7 @@ func (uh *UserHandler) GetById(ctx *gin.Context) {
 	}
 
 	var user = model.User{}
-	row := db.Db.QueryRow(`select * from "user" where id=$1;`, id)
+	row := db.Db.QueryRow(`select * from "users" where id=$1;`, id)
 	err = row.Scan(&user.Id, &user.Uuid, &user.Name)
 	if errors.Is(err, sql.ErrNoRows) {
 		fmt.Println(err)
@@ -44,7 +45,7 @@ func (uh *UserHandler) GetById(ctx *gin.Context) {
 
 func (uh *UserHandler) GetAllUsers(ctx *gin.Context) {
 	var users []model.User
-	rows, err := db.Db.Query(`select * from "user"`)
+	rows, err := db.Db.Query(`select * from "users"`)
 	if err != nil {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(500, "err query")
@@ -83,7 +84,7 @@ func (uh *UserHandler) AddUser(ctx *gin.Context) {
 	}
 	//use Exec whenever we want to insert update or delete
 	//Doing Exec(query) will not use a prepared statement, so lesser TCP calls to the SQL server
-	_, err = db.Db.Exec(`insert into "user" ("uuid","name") values ($1,$2)`, body.Uuid, body.Name)
+	_, err = db.Db.Exec(`insert into "users" ("uuid","name") values ($1,$2)`, body.Uuid, body.Name)
 	if err != nil {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(400, "Couldn't create the new user.")

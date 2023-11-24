@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"gps_api/db"
 	"gps_api/middleware"
 	"gps_api/model"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 type MovementsHandler struct {
@@ -20,37 +21,42 @@ func (mh *MovementsHandler) GetAllById(ctx *gin.Context) {
 	id, err := strconv.Atoi(ctx.Param("id"))
 	if err != nil {
 		fmt.Println(err)
-		ctx.AbortWithStatusJSON(400, "invalid id")
+		ctx.AbortWithStatusJSON(409, "invalid id")
 		return
 	}
 
-	var timeEntry = TimeEntry{}
-	err = ctx.ShouldBind(&timeEntry)
-	if err != nil {
-		fmt.Println(err)
-		ctx.AbortWithStatusJSON(400, "invalid time")
-		return
-	}
+	layout := "2006-01-02T15:04"
+	var timeStart = time.Time{}
+	var timeEnd = time.Time{}
+	timeStart, err = time.Parse(layout, ctx.DefaultQuery("timeStart", time.Time{}.String()))
+	timeEnd, err = time.Parse(layout, ctx.DefaultQuery("timeEnd", time.Time{}.String()))
+
+	fmt.Println(timeStart.Format(time.DateTime), timeStart.IsZero())
+	fmt.Println(timeEnd.Format(time.DateTime), timeEnd.IsZero())
+
 	var movements []model.Movement
 	var rows *sql.Rows
 
-	if timeEntry.TimeStart.IsZero() {
-		rows, err = db.Db.Query("select * from user_movements where user_id=$1", id)
-	} else if timeEntry.TimeEnd.IsZero() {
-		rows, err = db.Db.Query("select * from user_movements where user_id=$1 and created_at between $2 and now()::timestamp", id, timeEntry.TimeStart)
+	if !timeStart.IsZero() && !timeEnd.IsZero() {
+		rows, err = db.Db.Query("select * from movements where user_id=$1 and created_at between $2 and $3", id, timeStart.Format(time.DateTime), timeEnd.Format(time.DateTime))
+	} else if !timeStart.IsZero() {
+		rows, err = db.Db.Query("select * from movements where user_id=$1 and created_at between $2 and now()::timestamp", id, timeStart.Format(time.DateTime))
+	} else if !timeEnd.IsZero() {
+		rows, err = db.Db.Query("select * from movements where user_id=$1 and created_at <= $2", id, timeEnd.Format(time.DateTime))
 	} else {
-		rows, err = db.Db.Query("select * from user_movements where user_id=$1 and created_at between $2 and $3", id, timeEntry.TimeStart, timeEntry.TimeEnd)
+		rows, err = db.Db.Query("select * from movements where user_id=$1", id)
 	}
+
 	if err != nil {
 		fmt.Println(err)
-		ctx.AbortWithStatusJSON(400, "err")
+		ctx.JSON(400, "err")
 		return
 	}
 	defer rows.Close()
 	var movement = model.Movement{}
 
 	for rows.Next() {
-		err := rows.Scan(&movement.Id, &movement.UserId, &movement.Latitude, &movement.Longitude, &movement.CreatedAt)
+		err := rows.Scan(&movement.Id, &movement.UserId, &movement.Longitude, &movement.Latitude, &movement.CreatedAt)
 		if err != nil {
 			fmt.Println(err)
 			ctx.AbortWithStatusJSON(400, "err")
@@ -64,13 +70,13 @@ func (mh *MovementsHandler) GetAllById(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(400, "err")
 		return
 	}
-	ctx.JSON(http.StatusOK, movements)
+	ctx.AbortWithStatusJSON(http.StatusOK, movements)
 
 }
 
 func (mh *MovementsHandler) GetAll(ctx *gin.Context) {
 	var movements []model.Movement
-	rows, err := db.Db.Query("select * from user_movements")
+	rows, err := db.Db.Query("select * from movements")
 	if err != nil {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(400, "err")
@@ -94,8 +100,8 @@ func (mh *MovementsHandler) GetAll(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(400, "err")
 		return
 	}
-	ctx.JSON(http.StatusOK, movements)
-
+	ctx.JSON(200, movements)
+	return
 }
 
 func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
@@ -117,7 +123,7 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 	}
 	//use Exec whenever we want to insert update or delete
 	//Doing Exec(query) will not use a prepared statement, so lesser TCP calls to the SQL server
-	_, err = db.Db.Exec(`insert into user_movements ("user_id","latitude", "longitude") values ($1,$2,$3)`, id, body.Latitude, body.Longitude)
+	_, err = db.Db.Exec(`insert into movements ("user_id","latitude", "longitude") values ($1,$2,$3)`, id, body.Latitude, body.Longitude)
 	if err != nil {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(400, "Couldn't create the new movement")
@@ -126,7 +132,4 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 	}
 }
 
-type TimeEntry struct {
-	TimeStart time.Time `form:"timeStart" time_format:"2006-01-02T15:04:05Z"`
-	TimeEnd   time.Time `form:"timeEnd" time_format:"2006-01-02T15:04:05Z"`
-}
+// time_format:"2006-01-02T15:04:05.000Z"

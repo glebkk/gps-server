@@ -1,15 +1,22 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
 	"gps_api/db"
 	"gps_api/handler"
 	"gps_api/middleware"
 	"net/http"
+
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	route := gin.Default()
+
+	myCors := cors.DefaultConfig()
+	myCors.AllowAllOrigins = true
+	route.Use(cors.New(myCors))
+
 	db.ConnectDatabase()
 	route.GET("/ping", func(context *gin.Context) {
 		context.JSON(http.StatusOK, gin.H{

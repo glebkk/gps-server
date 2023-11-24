@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"gps_api/db"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 const TokenContextVar = "token"
@@ -16,7 +17,7 @@ func CheckToken() gin.HandlerFunc {
 	return func(context *gin.Context) {
 		authorization := context.GetHeader("Authorization")
 		fmt.Println(authorization)
-		row := db.Db.QueryRow(`SELECT "uuid", "id" FROM "user" WHERE "uuid"=$1`, authorization)
+		row := db.Db.QueryRow(`SELECT "uuid", "id" FROM "users" WHERE "uuid"=$1`, authorization)
 		var uuid string
 		var id int
 		err := row.Scan(&uuid, &id)
