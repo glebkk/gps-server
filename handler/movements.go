@@ -7,6 +7,7 @@ import (
 	"gps_api/db"
 	"gps_api/middleware"
 	"gps_api/model"
+	"gps_api/ws"
 	"net/http"
 	"strconv"
 	"time"
@@ -125,7 +126,21 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 	if err != nil {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(400, "Couldn't create the new movement")
-	} else {
-		ctx.JSON(http.StatusOK, "Movement created")
+		return
 	}
+	ctx.JSON(http.StatusOK, "Movement created")
+
+	clients := ws.GetClientsByUserID(id)
+
+	// Отправьте координаты всем клиентам
+	for _, client := range clients {
+		err := client.Conn.WriteJSON(body)
+		if err != nil {
+			fmt.Println(err)
+			// Обработайте ошибку записи данных веб-сокета
+			// Например, вы можете удалить клиента из списка
+			// или отправить ему специальное сообщение об ошибке.
+		}
+	}
+
 }

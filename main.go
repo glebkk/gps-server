@@ -4,6 +4,7 @@ import (
 	"gps_api/db"
 	"gps_api/handler"
 	"gps_api/middleware"
+	"gps_api/ws"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -34,6 +35,9 @@ func main() {
 	route.GET("/movements", movementsHandler.GetAll)
 	route.GET("/movements/:id", movementsHandler.GetAllById)
 	route.POST("/movements", middleware.CheckToken(), movementsHandler.AddMovement)
+
+	route.GET("/ws", ws.HandleWebSocket)
+
 	err := route.Run(":8080")
 	if err != nil {
 		panic(err)
