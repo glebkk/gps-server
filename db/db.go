@@ -16,22 +16,31 @@ func ConnectDatabase() {
 
 	err := godotenv.Load() //by default, it is .env so we don't have to write
 	if err != nil {
-		fmt.Errorf("Error is occurred  on .env file please check")
+		panic("Error is occurred  on .env file please check")
 	}
 	//we read our .env file
 	host := os.Getenv("HOST")
 	port, _ := strconv.Atoi(os.Getenv("PORT")) // don't forget to convert int since port is int type.
 	user := os.Getenv("USER")
 	dbname := os.Getenv("DB_NAME")
-	pass := os.Getenv("PASSWORD")
+	//var pass string
+	//if value, ok := os.LookupEnv("PASSWORD"); ok {
+	//	pass = value
+	//} else {
+	//	pass = ""
+	//}
 
 	// set up postgres sql to open it.
-	psqlSetup := fmt.Sprintf("host=%s port=%d user=%s dbname=%s password=%s sslmode=disable",
-		host, port, user, dbname, pass)
-	db, errSql := sql.Open("postgres", psqlSetup)
-	if errSql != nil {
-		fmt.Println("There is an error while connecting to the database ", errSql)
-		panic(errSql)
+	psqlSetup := fmt.Sprintf("host=%s port=%d user=%s dbname=%s sslmode=disable",
+		host, port, user, dbname)
+	db, err := sql.Open("postgres", psqlSetup)
+	if err != nil {
+		fmt.Errorf("There is an error while connecting to the database")
+		panic(err)
+	}
+	if err = db.Ping(); err != nil {
+		fmt.Errorf("There is an error while connecting to the database")
+		panic(err)
 	}
 
 	Db = db

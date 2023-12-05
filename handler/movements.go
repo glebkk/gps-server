@@ -7,6 +7,7 @@ import (
 	"gps_api/db"
 	"gps_api/middleware"
 	"gps_api/model"
+	"gps_api/services"
 	"gps_api/ws"
 	"net/http"
 	"strconv"
@@ -16,6 +17,7 @@ import (
 )
 
 type MovementsHandler struct {
+	polygonService *services.PolygonService
 }
 
 func (mh *MovementsHandler) GetAllById(ctx *gin.Context) {
@@ -122,7 +124,7 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(400, "Bad Input")
 		return
 	}
-	_, err = db.Db.Exec(`insert into movements ("user_id","latitude", "longitude") values ($1,$2,$3)`, id, body.Latitude, body.Longitude)
+	_, err = db.Db.Exec(`insert into movements ("user_id", "latitude", "longitude") values ($1,$2,$3)`, id, body.Latitude, body.Longitude)
 	if err != nil {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(400, "Couldn't create the new movement")
@@ -130,8 +132,15 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, "Movement created")
 
-	clients := ws.GetClientsByUserID(id)
+	polygon, err := mh.polygonService.GetPolygonByPoint(fmt.Sprintf("%f", body.Longitude), fmt.Sprintf("%f", body.Latitude))
+	if err != nil {
+		return
+	}
+	if polygon == nil {
 
+	}
+
+	clients := ws.GetClientsByUserID(id)
 	// Отправьте координаты всем клиентам
 	for _, client := range clients {
 		err := client.Conn.WriteJSON(body)

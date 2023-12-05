@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"gps_api/db"
+	"gps_api/middleware"
 	"gps_api/model"
+	"gps_api/ws"
 	"net/http"
 	"strconv"
 
@@ -14,6 +16,39 @@ import (
 )
 
 type UserHandler struct {
+}
+
+func (uh *UserHandler) EnableTrack(ctx *gin.Context) {
+	id := ctx.GetInt(middleware.UserIdContextVar)
+
+	_, err := db.Db.Exec(`update users set is_tracking = true where id = $1`, id)
+	if err != nil {
+		fmt.Println(err)
+		ctx.AbortWithStatusJSON(500, "error")
+		return
+	}
+	ctx.JSON(http.StatusOK, "user is tracking")
+}
+
+func (uh *UserHandler) DisableTrack(ctx *gin.Context) {
+	id := ctx.GetInt(middleware.UserIdContextVar)
+
+	_, err := db.Db.Exec(`update users set is_tracking = false where id = $1`, id)
+	if err != nil {
+		fmt.Println(err)
+		ctx.AbortWithStatusJSON(500, "error")
+		return
+	}
+	ctx.JSON(http.StatusOK, "user is not tracking")
+
+	clients := ws.GetClientsByUserID(id)
+
+	for _, client := range clients {
+		err := client.Conn.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
 }
 
 func (uh *UserHandler) GetById(ctx *gin.Context) {
@@ -27,7 +62,7 @@ func (uh *UserHandler) GetById(ctx *gin.Context) {
 
 	var user = model.User{}
 	row := db.Db.QueryRow(`select * from "users" where id=$1;`, id)
-	err = row.Scan(&user.Id, &user.Uuid, &user.Name)
+	err = row.Scan(&user.Id, &user.Uuid, &user.Name, &user.IsTracking)
 	if errors.Is(err, sql.ErrNoRows) {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(404, "not this id")
@@ -55,7 +90,7 @@ func (uh *UserHandler) GetAllUsers(ctx *gin.Context) {
 	var user = model.User{}
 
 	for rows.Next() {
-		err := rows.Scan(&user.Id, &user.Uuid, &user.Name)
+		err := rows.Scan(&user.Id, &user.Uuid, &user.Name, &user.IsTracking)
 		if err != nil {
 			fmt.Println(err)
 			ctx.AbortWithStatusJSON(500, "err row scan")
