@@ -39,3 +39,12 @@ func (ph *PolygonHandler) CreatePolygon(ctx *gin.Context) {
 	}
 	ctx.JSON(200, body)
 }
+func (ph *PolygonHandler) GetAll(ctx *gin.Context) {
+	polygons, err := ph.polygonService.GetAll()
+	fmt.Println(polygons)
+	if err != nil {
+		ctx.AbortWithStatusJSON(500, "error get all")
+		return
+	}
+	ctx.JSON(200, polygons)
+}

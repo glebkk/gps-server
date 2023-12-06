@@ -18,6 +18,14 @@ import (
 
 type MovementsHandler struct {
 	polygonService *services.PolygonService
+	visitService   *services.VisitService
+}
+
+func NewMovementHandler(polygonService *services.PolygonService, visitService *services.VisitService) *MovementsHandler {
+	return &MovementsHandler{
+		polygonService: polygonService,
+		visitService:   visitService,
+	}
 }
 
 func (mh *MovementsHandler) GetAllById(ctx *gin.Context) {
@@ -132,14 +140,6 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 	}
 	ctx.JSON(http.StatusOK, "Movement created")
 
-	polygon, err := mh.polygonService.GetPolygonByPoint(fmt.Sprintf("%f", body.Longitude), fmt.Sprintf("%f", body.Latitude))
-	if err != nil {
-		return
-	}
-	if polygon == nil {
-
-	}
-
 	clients := ws.GetClientsByUserID(id)
 	// Отправьте координаты всем клиентам
 	for _, client := range clients {
@@ -152,4 +152,19 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 		}
 	}
 
+	polygon, err := mh.polygonService.GetPolygonByPoint(fmt.Sprintf("%f", body.Longitude), fmt.Sprintf("%f", body.Latitude))
+	if err != nil {
+		return
+	}
+	isOpen, err := mh.visitService.CheckVisitOpen(id)
+	if polygon == nil && isOpen {
+		if err := mh.visitService.CloseVisit(id); err != nil {
+			return
+		}
+	}
+	if polygon != nil && !isOpen {
+		if err := mh.visitService.OpenVisit(id, polygon.Id); err != nil {
+			return
+		}
+	}
 }

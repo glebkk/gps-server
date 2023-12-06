@@ -5,28 +5,25 @@ import (
 	"errors"
 	"fmt"
 	"gps_api/db"
-	"time"
 )
 
 type VisitService struct {
 }
 
-func (vs *VisitService) isVisitOpen(user_id int, polygon_id *int) (bool, error) {
-	row := db.Db.QueryRow(`SELECT time_exit
-								FROM visits vs
-								where vs.user_id = &1 and vs.polygon_id = $2 
-								order by time_entry desc
-								limit 1`,
-		user_id, polygon_id)
+func NewVisitService() *VisitService {
+	return &VisitService{}
+}
 
-	//SELECT time_exit is not null
-	//FROM visits vs
-	//where vs.user_id = 1 and vs.polygon_id = 1
-	//order by time_entry desc
-	//limit 1
+func (vs *VisitService) CheckVisitOpen(userId int) (bool, error) {
+	row := db.Db.QueryRow(`SELECT time_exit is not null
+							FROM visits vs
+							where vs.user_id = $1
+							order by time_entry desc
+							limit 1`,
+		userId)
 
-	var timeExit time.Time
-	err := row.Scan(&timeExit)
+	var visitIsOpen bool
+	err := row.Scan(&visitIsOpen)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -37,5 +34,34 @@ func (vs *VisitService) isVisitOpen(user_id int, polygon_id *int) (bool, error) 
 		return false, errors.New("err in check is visit open" + err.Error())
 	}
 
-	return true, nil
+	return visitIsOpen, nil
+}
+
+func (vs *VisitService) CloseVisit(userId int) error {
+	_, err := db.Db.Exec(`update visits
+									set time_exit = now()
+									where id = (
+										SELECT id
+										FROM visits v 
+										where user_id = $1 and time_exit is null
+										limit 1
+									)`,
+		userId)
+	if err != nil {
+		fmt.Println(err)
+		return errors.New("err in close visit" + err.Error())
+	}
+
+	return nil
+}
+
+func (vs *VisitService) OpenVisit(userId int, polygonId int) error {
+	_, err := db.Db.Exec(`insert into visits (user_id, polygon_id) values ($1, $2)`,
+		userId, polygonId)
+	if err != nil {
+		fmt.Println(err)
+		return errors.New("err in open visit" + err.Error())
+	}
+
+	return nil
 }

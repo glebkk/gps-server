@@ -25,11 +25,13 @@ func main() {
 		})
 	})
 
-	userHandler := handler.UserHandler{}
-	movementsHandler := handler.MovementsHandler{}
-
 	polygonService := services.NewPolygonService()
 	polygonHandler := handler.NewPolygonHandler(polygonService)
+
+	visitService := services.NewVisitService()
+
+	userHandler := handler.UserHandler{}
+	movementsHandler := handler.NewMovementHandler(polygonService, visitService)
 
 	route.POST("/users", userHandler.AddUser)
 	route.GET("/users", userHandler.GetAllUsers)
@@ -43,15 +45,17 @@ func main() {
 
 	route.POST("/polygons", polygonHandler.CreatePolygon)
 
-	route.GET("/polygons", func(ctx *gin.Context) {
-		lat := ctx.DefaultQuery("latitude", "")
-		long := ctx.DefaultQuery("longitude", "")
-		polygon, err := polygonService.GetPolygonByPoint(lat, long)
-		if err != nil {
-			ctx.AbortWithStatusJSON(400, err.Error())
-		}
-		ctx.JSON(200, polygon)
-	})
+	//route.GET("/polygons", func(ctx *gin.Context) {
+	//	lat := ctx.DefaultQuery("latitude", "")
+	//	long := ctx.DefaultQuery("longitude", "")
+	//	polygon, err := polygonService.GetPolygonByPoint(lat, long)
+	//	if err != nil {
+	//		ctx.AbortWithStatusJSON(400, err.Error())
+	//	}
+	//	ctx.JSON(200, polygon)
+	//})
+
+	route.GET("/polygons", polygonHandler.GetAll)
 
 	route.GET("/ws", ws.HandleWebSocket)
 
