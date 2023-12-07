@@ -31,6 +31,7 @@ func (ph *PolygonHandler) CreatePolygon(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(400, "Bad Input")
 		return
 	}
+	fmt.Println(body.Geometry)
 	err = ph.polygonService.CreatePolygon(body)
 	if err != nil {
 		fmt.Println(err)

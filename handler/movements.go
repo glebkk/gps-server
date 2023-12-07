@@ -115,7 +115,7 @@ func (mh *MovementsHandler) GetAll(ctx *gin.Context) {
 	return
 }
 
-func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
+func (mh *MovementsHandler) CreateMovement(ctx *gin.Context) {
 	id := ctx.GetInt(middleware.UserIdContextVar)
 
 	body := model.MovementCreate{}
@@ -146,6 +146,8 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 		err := client.Conn.WriteJSON(body)
 		if err != nil {
 			fmt.Println(err)
+			_ = client.Conn.Close()
+
 			// Обработайте ошибку записи данных веб-сокета
 			// Например, вы можете удалить клиента из списка
 			// или отправить ему специальное сообщение об ошибке.
@@ -154,6 +156,7 @@ func (mh *MovementsHandler) AddMovement(ctx *gin.Context) {
 
 	polygon, err := mh.polygonService.GetPolygonByPoint(fmt.Sprintf("%f", body.Longitude), fmt.Sprintf("%f", body.Latitude))
 	if err != nil {
+		fmt.Println("err", err)
 		return
 	}
 	isOpen, err := mh.visitService.CheckVisitOpen(id)

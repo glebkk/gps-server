@@ -2,8 +2,10 @@ package services
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/paulmach/orb/geojson"
 	"gps_api/db"
 	"gps_api/model"
 )
@@ -16,7 +18,8 @@ func NewPolygonService() *PolygonService {
 }
 
 func (ps *PolygonService) CreatePolygon(polygon model.PolygonCreate) error {
-	_, err := db.Db.Exec(`insert into polygon_areas (geom) values (ST_GeometryFromText($1))`, polygon.Geometry)
+	geojsonRaw, err := json.Marshal(polygon.Geometry)
+	_, err = db.Db.Exec(`insert into polygon_areas (geom) values (ST_FlipCoordinates(st_geomfromgeojson($1)))`, geojsonRaw)
 	if err != nil {
 		fmt.Println(err)
 		return errors.New("error create")
@@ -33,16 +36,32 @@ func (ps *PolygonService) GetAll() ([]model.Polygon, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var polygon = model.Polygon{}
 
 	for rows.Next() {
-		err := rows.Scan(&polygon.Id, &polygon.Geometry)
+		var id int
+		var geometryStr string
+
+		err := rows.Scan(&id, &geometryStr)
 		if err != nil {
 			fmt.Println(err)
 			return nil, err
 		}
+
+		var geometry geojson.Geometry
+		err = json.Unmarshal([]byte(geometryStr), &geometry)
+		if err != nil {
+			fmt.Println(err)
+			return nil, err
+		}
+
+		polygon := model.Polygon{
+			Id:       id,
+			Geometry: geometry,
+		}
+
 		polygons = append(polygons, polygon)
 	}
+
 	err = rows.Err()
 	if err != nil {
 		fmt.Println(err)
@@ -52,23 +71,43 @@ func (ps *PolygonService) GetAll() ([]model.Polygon, error) {
 }
 
 func (ps *PolygonService) GetPolygonByPoint(long string, lat string) (*model.Polygon, error) {
-	row := db.Db.QueryRow(`SELECT *
+	row := db.Db.QueryRow(`SELECT id, st_asgeojson(ST_FlipCoordinates( pa.geom ))
 								FROM polygon_areas pa
 								where ST_Contains(st_setsrid(pa.geom, 4326), st_setsrid(st_point($1, $2), 4326))
 								limit 1`,
 		long, lat)
 
-	var pm = &model.Polygon{}
-	err := row.Scan(&pm.Id, &pm.Geometry)
+	var id int
+	var geometryStr string
+
+	err := row.Scan(&id, &geometryStr)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("get polygon by point", err)
+		return nil, err
+	}
+
+	fmt.Println(geometryStr)
+	var geometry geojson.Geometry
+	err = json.Unmarshal([]byte(geometryStr), &geometry)
+	if err != nil {
+		fmt.Println("unmarshal err", err)
+		return nil, err
+	}
+
+	polygon := &model.Polygon{
+		Id:       id,
+		Geometry: geometry,
+	}
+
+	if err != nil {
+		fmt.Println("error get polygon by movement", err)
 		return nil, errors.New("error get polygon by movement" + err.Error())
 	}
 
-	return pm, nil
+	return polygon, nil
 }

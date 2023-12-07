@@ -40,7 +40,7 @@ func main() {
 	route.POST("/users/disable-track", middleware.CheckToken(), userHandler.DisableTrack)
 
 	route.GET("/movements", movementsHandler.GetAll)
-	route.POST("/movements", middleware.CheckToken(), movementsHandler.AddMovement)
+	route.POST("/movements", middleware.CheckToken(), movementsHandler.CreateMovement)
 	route.GET("/movements/:id", movementsHandler.GetAllById)
 
 	route.POST("/polygons", polygonHandler.CreatePolygon)

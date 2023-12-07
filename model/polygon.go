@@ -1,6 +1,8 @@
 package model
 
-import "github.com/paulmach/go.geojson"
+import (
+	"github.com/paulmach/orb/geojson"
+)
 
 type Polygon struct {
 	Id       int              `json:"id"`
