@@ -8,6 +8,7 @@ import (
 	"gps_api/middleware"
 	"gps_api/model"
 	"gps_api/services"
+	"gps_api/valhalla"
 	"gps_api/ws"
 	"net/http"
 	"strconv"
@@ -124,37 +125,37 @@ func (mh *MovementsHandler) CreateMovement(ctx *gin.Context) {
 		ctx.AbortWithStatusJSON(404, "invalid data")
 		return
 	}
-	fmt.Println(raw)
+
 	err = json.Unmarshal(raw, &body)
-	fmt.Println(body.Longitude, body.Latitude)
 	if err != nil {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(400, "Bad Input")
 		return
 	}
-	_, err = db.Db.Exec(`insert into movements ("user_id", "latitude", "longitude") values ($1,$2,$3)`, id, body.Latitude, body.Longitude)
-	if err != nil {
-		fmt.Println(err)
-		ctx.AbortWithStatusJSON(400, "Couldn't create the new movement")
-		return
+
+	valhallaResponse := valhalla.SendLocateRequest(body.Latitude, body.Longitude)
+	valhallaPoint := valhalla.GetEdge(valhallaResponse)
+	var point *model.MovementCreate
+
+	if valhallaPoint != nil {
+		point = valhallaPoint
+	} else {
+		point = &body
 	}
-	ctx.JSON(http.StatusOK, "Movement created")
 
 	clients := ws.GetClientsByUserID(id)
-	// Отправьте координаты всем клиентам
 	for _, client := range clients {
-		err := client.Conn.WriteJSON(body)
+		var err error
+		err = client.Conn.WriteJSON(point)
 		if err != nil {
 			fmt.Println(err)
 			_ = client.Conn.Close()
-
-			// Обработайте ошибку записи данных веб-сокета
-			// Например, вы можете удалить клиента из списка
-			// или отправить ему специальное сообщение об ошибке.
 		}
 	}
+	ctx.JSON(200, valhallaPoint)
 
-	polygon, err := mh.polygonService.GetPolygonByPoint(fmt.Sprintf("%f", body.Longitude), fmt.Sprintf("%f", body.Latitude))
+	// Отправьте координаты всем клиентам
+	polygon, err := mh.polygonService.GetPolygonByPoint(fmt.Sprintf("%f", point.Longitude), fmt.Sprintf("%f", point.Latitude))
 	if err != nil {
 		fmt.Println("err", err)
 		return
@@ -170,4 +171,14 @@ func (mh *MovementsHandler) CreateMovement(ctx *gin.Context) {
 			return
 		}
 	}
+	return
+
+	_, err = db.Db.Exec(`insert into movements ("user_id", "latitude", "longitude") values ($1,$2,$3)`, id, point.Latitude, point.Longitude)
+	if err != nil {
+		fmt.Println(err)
+		ctx.AbortWithStatusJSON(400, "Couldn't create the new movement")
+		return
+	}
+	ctx.JSON(http.StatusOK, "Movement created")
+
 }

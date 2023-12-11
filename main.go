@@ -29,6 +29,7 @@ func main() {
 	polygonHandler := handler.NewPolygonHandler(polygonService)
 
 	visitService := services.NewVisitService()
+	visitHanler := handler.NewVisitHandler(visitService)
 
 	userHandler := handler.UserHandler{}
 	movementsHandler := handler.NewMovementHandler(polygonService, visitService)
@@ -44,6 +45,8 @@ func main() {
 	route.GET("/movements/:id", movementsHandler.GetAllById)
 
 	route.POST("/polygons", polygonHandler.CreatePolygon)
+
+	route.GET("/visits", visitHanler.GetLastUserVisits)
 
 	//route.GET("/polygons", func(ctx *gin.Context) {
 	//	lat := ctx.DefaultQuery("latitude", "")

@@ -108,6 +108,7 @@ func (ps *PolygonService) GetPolygonByPoint(long string, lat string) (*model.Pol
 		fmt.Println("error get polygon by movement", err)
 		return nil, errors.New("error get polygon by movement" + err.Error())
 	}
+	fmt.Println("point in polygon", polygon.Id)
 
 	return polygon, nil
 }
